@@ -61,12 +61,25 @@ export async function searchProducts(query) {
       num: "5"
     });
 
-    // Usando proxy configurado no vite.config.js para evitar CORS
+    // Usando proxy configurado no vite.config.js (dev) ou vercel.json (prod)
+    console.log(`Buscando: ${query} via Proxy...`);
+    
     const response = await fetch(
       `/api/serpapi/search.json?${params.toString()}`
     );
     
-    if (!response.ok) throw new Error('Erro na busca SerpApi');
+    // Verificando se retornou HTML (erro de proxy/rewrite) em vez de JSON
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.includes("text/html")) {
+        console.error("ERRO: A API retornou HTML em vez de JSON. Isso geralmente indica que o Proxy falhou e o app retornou o index.html.");
+        throw new Error("Proxy Rewrite falhou (Retornou HTML)");
+    }
+
+    if (!response.ok) {
+        const errText = await response.text();
+        console.error(`Erro na resposta da API: ${response.status}`, errText);
+        throw new Error(`Erro API: ${response.status}`);
+    }
     
     const data = await response.json();
     
