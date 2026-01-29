@@ -35,7 +35,8 @@ export function ShoppingList() {
   const [newItem, setNewItem] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('Geral');
+  // Inicializa com a primeira categoria da lista para garantir consistência visual/estado
+  const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]);
   const [filterCategory, setFilterCategory] = useState('Todas');
   const [selectedItem, setSelectedItem] = useState(null); // Estado para o modal
   const searchRef = useRef(null);
