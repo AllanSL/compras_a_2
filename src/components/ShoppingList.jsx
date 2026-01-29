@@ -104,17 +104,17 @@ export function ShoppingList() {
     }
   };
 
-  const total = items.reduce((acc, item) => {
+  const filteredItems = filterCategory === 'Todas' 
+    ? items 
+    : items.filter(item => item.category === filterCategory);
+
+  const total = filteredItems.reduce((acc, item) => {
     // Só soma se não estiver marcado como comprado? Ou soma tudo? 
     // Geralmente lista de compras soma tudo o que está listado (planejado).
     // Se quiser somar só o que falta comprar: !item.completed
     // Vou somar TUDO (Orçamento total) e talvez mostrar o "falta comprar"
     return acc + parsePrice(item.price);
   }, 0);
-
-  const filteredItems = filterCategory === 'Todas' 
-    ? items 
-    : items.filter(item => item.category === filterCategory);
 
   const toggleItem = async (id) => {
     const item = items.find(i => i.id === id);
