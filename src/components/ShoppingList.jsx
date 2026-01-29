@@ -1,50 +1,36 @@
 import { useState, useEffect, useRef } from 'react';
 import { searchProducts } from '../services/productApi';
+import { db } from '../services/firebase';
+import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy } from 'firebase/firestore';
 
 const CATEGORIES = ['Cozinha', 'Quarto', 'Banheiro', 'Sala', 'Limpeza'];
 
 export function ShoppingList() {
-  // Inicializa com dados do LocalStorage se existirem, senão usa os itens de teste
-  const [items, setItems] = useState(() => {
-    const saved = localStorage.getItem('shopping_list_db');
-    if (saved) {
-        return JSON.parse(saved);
-    }
-    return [
-        { 
-            id: 1, 
-            name: 'Arroz Branco Camil 5kg Tipo 1', 
-            image: 'https://cdn.tendaatacado.com.br/img/item/0080/00008044.jpg', 
-            price: 'R$ 29,90', 
-            store: 'Tenda Atacado', 
-            category: 'Cozinha', 
-            completed: false 
-        },
-        { 
-            id: 2, 
-            name: 'Kit Detergente Ypê 500ml c/ 6 Unidades', 
-            image: 'https://m.media-amazon.com/images/I/61Z6-hL8bXL._AC_SX679_.jpg', 
-            price: 'R$ 15,49', 
-            store: 'Amazon', 
-            category: 'Limpeza', 
-            completed: true 
-        },
-        { 
-            id: 3, 
-            name: 'Café Torrado e Moído Melitta 500g Tradicional', 
-            image: 'https://m.media-amazon.com/images/I/61+9+85+xL._AC_SX679_.jpg', 
-            price: 'R$ 18,50', 
-            store: 'Mercado Livre', 
-            category: 'Cozinha', 
-            completed: false 
-        }
-    ];
-  });
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Salva no LocalStorage sempre que a lista mudar
+  // Escuta dados do Firebase em Tempo Real
   useEffect(() => {
-    localStorage.setItem('shopping_list_db', JSON.stringify(items));
-  }, [items]);
+    const q = query(collection(db, "shopping_list"), orderBy("created_at", "desc"));
+    
+    // onSnapshot cria uma conexão websocket que atualiza instantaneamente
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const firebaseItems = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        setItems(firebaseItems);
+        setLoading(false);
+    }, (error) => {
+        console.error("Erro ao conectar com Firebase:", error);
+        // Fallback para LocalStorage se o Firebase falhar (ex: sem internet/credenciais)
+        const saved = localStorage.getItem('shopping_list_db');
+        if (saved) setItems(JSON.parse(saved));
+        setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const [newItem, setNewItem] = useState('');
   const [suggestions, setSuggestions] = useState([]);
@@ -79,27 +65,30 @@ export function ShoppingList() {
     setIsSearching(false);
   };
 
-  const addItemToList = (product) => {
-    setItems([
-      ...items,
-      { 
-        id: Date.now(), 
-        name: product.name, 
-        image: product.image,
-        price: product.price,
-        store: product.brands,
-        category: selectedCategory,
-        completed: false 
-      }
-    ]);
-    setNewItem('');
-    setSuggestions([]);
+  const addItemToList = async (product) => {
+    try {
+        await addDoc(collection(db, "shopping_list"), {
+            name: product.name,
+            image: product.image,
+            price: product.price,
+            store: product.brands,
+            category: selectedCategory,
+            completed: false,
+            created_at: new Date()
+        });
+        setNewItem('');
+        setSuggestions([]);
+    } catch (e) {
+        console.error("Erro ao adicionar item: ", e);
+        alert("Erro ao salvar. Verifique se o Firebase está configurado.");
+    }
   };
 
-  const updateCategory = (id, newCategory) => {
-    setItems(items.map(item => 
-      item.id === id ? { ...item, category: newCategory } : item
-    ));
+  const updateCategory = async (id, newCategory) => {
+    // setItems Otimista (opcional, o Firebase é rapido o suficiente para não precisar)
+    await updateDoc(doc(db, "shopping_list", id), {
+        category: newCategory
+    });
   };
 
   const parsePrice = (priceStr) => {
@@ -126,14 +115,19 @@ export function ShoppingList() {
     ? items 
     : items.filter(item => item.category === filterCategory);
 
-  const toggleItem = (id) => {
-    setItems(items.map(item => 
-      item.id === id ? { ...item, completed: !item.completed } : item
-    ));
+  const toggleItem = async (id) => {
+    const item = items.find(i => i.id === id);
+    if (item) {
+        await updateDoc(doc(db, "shopping_list", id), {
+            completed: !item.completed
+        });
+    }
   };
 
-  const deleteItem = (id) => {
-    setItems(items.filter(item => item.id !== id));
+  const deleteItem = async (id) => {
+    if (confirm("Tem certeza que deseja remover este item?")) {
+        await deleteDoc(doc(db, "shopping_list", id));
+    }
   };
 
   const openItemDetails = (item) => {
@@ -170,9 +164,10 @@ export function ShoppingList() {
                         <select 
                             value={selectedItem.category}
                             onChange={(e) => {
-                            const newCat = e.target.value;
-                            updateCategory(selectedItem.id, newCat);
-                            setSelectedItem(prev => ({ ...prev, category: newCat }));
+                                const newCat = e.target.value;
+                                updateCategory(selectedItem.id, newCat);
+                                // Atualiza localmente o modal apenas para feedback visual imediato
+                                setSelectedItem(prev => ({ ...prev, category: newCat }));
                             }}
                             className="modal-category-select"
                         >
