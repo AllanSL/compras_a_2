@@ -61,11 +61,13 @@ export async function searchProducts(query) {
       num: "5"
     });
 
-    // Usando proxy configurado no vite.config.js (dev) ou vercel.json (prod)
-    console.log(`Buscando: ${query} via Proxy...`);
+    // Usando nossa função serverless (api/search) que atua como proxy seguro
+    console.log(`Buscando: ${query} via API Proxy...`);
     
+    // Convertendo params para string, removendo api_key se quisermos esconder do front (mas em dev o proxy do vite precisa)
+    // O backend (api/search.js) vai reinserir a chave se faltar, mas vamos mandar tudo
     const response = await fetch(
-      `/api/serpapi/search.json?${params.toString()}`
+      `/api/search?${params.toString()}`
     );
     
     // Verificando se retornou HTML (erro de proxy/rewrite) em vez de JSON

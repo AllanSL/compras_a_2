@@ -7,10 +7,10 @@ export default defineConfig({
   server: {
     host: true, // Libera acesso externo (LAN)
     proxy: {
-      '/api/serpapi': {
-        target: 'https://serpapi.com',
+      '/api/search': {
+        target: 'https://serpapi.com/search.json',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/serpapi/, '')
+        rewrite: (path) => path.replace(/^\/api\/search/, '')
       }
     }
   }
