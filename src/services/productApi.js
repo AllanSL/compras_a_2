@@ -30,7 +30,19 @@ export async function searchProducts(query) {
 
   // Se não tiver chave, retorna array vazio ou erro (silencioso para não quebrar o app)
   if (!API_KEY || API_KEY === 'sua_chave_da_serpapi_aqui') {
-    console.warn("SerpAPI Key não configurada no arquivo .env");
+    console.error("ERRO CRÍTICO: SerpAPI Key não encontrada. Verifique as Variáveis de Ambiente no Vercel.");
+    // Em produção, vamos retornar o Mock para o usuário não ver "nada"
+    if (import.meta.env.PROD) {
+        console.log("Fallback para MOCK em produção devido a falta de chave.");
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return MOCK_PRODUCTS.map(product => ({
+            id: product.product_id || Math.random().toString(36).substr(2, 9),
+            name: "[MOCK] " + product.title,
+            image: product.thumbnail || null,
+            brands: product.source || product.merchant || '',
+            price: product.price
+        }));
+    }
     return [];
   }
 
