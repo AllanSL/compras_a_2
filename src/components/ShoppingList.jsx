@@ -39,14 +39,20 @@ export function ShoppingList() {
   const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]);
   const [filterCategory, setFilterCategory] = useState('Todas');
   const [selectedItem, setSelectedItem] = useState(null); // Estado para o modal
+  const [previewItem, setPreviewItem] = useState(null); // Estado para modal de preview da busca
   const searchRef = useRef(null);
 
   // Fecha sugestões ao clicar fora
   useEffect(() => {
     function handleClickOutside(event) {
-        if (searchRef.current && !searchRef.current.contains(event.target)) {
-            setSuggestions([]);
+        // Se clicar dentro do container de busca ou dentro de um modal aberto, não fecha as sugestões
+        if (
+            (searchRef.current && searchRef.current.contains(event.target)) ||
+            event.target.closest('.modal-overlay')
+        ) {
+            return;
         }
+        setSuggestions([]);
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
@@ -137,6 +143,56 @@ export function ShoppingList() {
 
   return (
     <div className="shopping-list">
+      {/* Modal de Preview (Adicionar Item) */}
+      {previewItem && (
+        <div className="modal-overlay" onClick={() => setPreviewItem(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setPreviewItem(null)}>✕</button>
+            
+            <div className="modal-image-container">
+               {previewItem.image ? (
+                   <img src={previewItem.image} alt="" className="modal-image" />
+               ) : (
+                   <span style={{color: '#999'}}>Sem imagem</span>
+               )}
+            </div>
+            
+            <div className="modal-body">
+                <h2 className="modal-title">{previewItem.name}</h2>
+                <span className="modal-price-tag">{previewItem.price || 'R$ --'}</span>
+                
+                <div className="modal-details-grid">
+                    <div className="detail-item">
+                        <span className="detail-label">Loja</span>
+                        <span className="detail-value">{previewItem.brands || '-'}</span>
+                    </div>
+                    <div className="detail-item">
+                        <span className="detail-label">Categoria</span>
+                        <select 
+                            value={selectedCategory}
+                            onChange={(e) => setSelectedCategory(e.target.value)}
+                            className="modal-category-select"
+                        >
+                            {CATEGORIES.map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+                
+                <div className="modal-actions">
+                <button 
+                    onClick={() => { addItemToList(previewItem); setPreviewItem(null); }} 
+                    className="modal-confirm-btn"
+                >
+                    Adicionar à Lista
+                </button>
+                </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal de Detalhes do Produto */}
       {selectedItem && (
         <div className="modal-overlay" onClick={() => setSelectedItem(null)}>
@@ -215,9 +271,9 @@ export function ShoppingList() {
             )}
             
             {suggestions.length > 0 && (
-            <ul className="suggestions-list" ref={searchRef}>
+            <ul className="suggestions-list">
                 {suggestions.map((product) => (
-                <li key={product.id} onClick={() => addItemToList(product)}>
+                <li key={product.id} onClick={() => setPreviewItem(product)}>
                     {product.image && <img src={product.image} alt="" className="product-thumb" />}
                     <div className="product-info">
                         <span className="product-name">{product.name}</span>
